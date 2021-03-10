@@ -10,9 +10,67 @@ import { Activity, ActivityTypes, BotAdapter, TurnContext, ConversationReference
 import * as Debug from 'debug';
 import { google } from 'googleapis';
 import { HangoutsBotWorker } from './botworker';
+import { decode, verify } from 'jsonwebtoken'
+import fetch from 'cross-fetch';
 const debug = Debug('botkit:hangouts');
 
 const apiVersion = 'v1';
+
+const issuer = 'chat@system.gserviceaccount.com';
+
+class CertificateCache {
+    private url: string;
+    private expiresAt: Date;
+
+    private certificates: Map<string, string>;
+
+    constructor() {
+        this.url = `https://www.googleapis.com/service_accounts/v1/metadata/x509/${issuer}`;
+        this.expiresAt = new Date();
+    }
+
+    /**
+     * Gets the certificate associated with the provided kid from the google certificates 
+     * endpoint.
+     * 
+     * @param kid The kid associated with the certificate we with to retrieve.
+     */
+    public async getCertificate(kid: string): Promise<string> {
+        if (this.hasExpired()) {
+            await this.refresh()
+        }
+
+        return this.certificates.get(kid);
+    }
+
+    /**
+     * Refresh the local certificates cache with fresh certificates from google.
+     */
+    private async refresh(): Promise<void> {
+        this.certificates = new Map<string, string>();
+
+        const response = await fetch(this.url);
+        const certificates = JSON.parse(await response.text());
+
+        for (const kid in certificates) {
+            this.certificates.set(kid, certificates[kid]);
+        }
+
+        if (response.headers.has('expires')) {
+            this.expiresAt = new Date(response.headers.get('expires'));
+        } else {
+            this.expiresAt = new Date(); // Immediately expire
+        }
+    }
+
+    /**
+     * Determines if the certificates we've cached are about to expire forcing
+     * us to refresh them.
+     */
+    private hasExpired(): boolean {
+        return this.expiresAt.getDate() < (new Date()).getDate() + 1;
+    }
+}
 
 /**
  * Connect [Botkit](https://www.npmjs.com/package/botkit) or [BotBuilder](https://www.npmjs.com/package/botbuilder) to Google Hangouts
@@ -24,11 +82,13 @@ export class HangoutsAdapter extends BotAdapter {
      * @ignore
      */
     public name = 'Google Hangouts Adapter';
+
     /**
      * Object containing one or more Botkit middlewares to bind automatically.
      * @ignore
      */
     public middlewares;
+
     /**
      * A customized BotWorker object that exposes additional utility methods.
      * @ignore
@@ -46,12 +106,17 @@ export class HangoutsAdapter extends BotAdapter {
     private api: any;
 
     /**
+     * A self-refreshing cache for google verification certificates.
+     */
+    private certificateCache: CertificateCache;
+
+    /**
      * Create an adapter to handle incoming messages from Google Hangouts and translate them into a standard format for processing by your bot.
      *
      * Use with Botkit:
      *```javascript
      * const adapter = new HangoutsAdapter({
-     *      token: process.env.GOOGLE_TOKEN,
+     *      project_number: process.env.GOOGLE_PROJECT_NUMBER,
      *      google_auth_params: {
      *          credentials: process.env.GOOGLE_CREDS
      *      }
@@ -65,7 +130,7 @@ export class HangoutsAdapter extends BotAdapter {
      * Use with BotBuilder:
      *```javascript
      * const adapter = new HangoutsAdapter({
-     *      token: process.env.GOOGLE_TOKEN,
+     *      project_number: process.env.GOOGLE_PROJECT_NUMBER,
      *      google_auth_params: {
      *          credentials: process.env.GOOGLE_CREDS
      *      }
@@ -80,32 +145,13 @@ export class HangoutsAdapter extends BotAdapter {
      * });
      * ```
      *
-     * @param options An object containing API credentials and a webhook verification token
+     * @param options An object containing API credentials
      */
     public constructor(options: HangoutsAdapterOptions) {
         super();
 
         this.options = options;
-
-        if (!this.options.token) {
-            const warning = [
-                '',
-                '****************************************************************************************',
-                '* WARNING: Your bot is operating without recommended security mechanisms in place.     *',
-                '* Initialize your adapter with a token parameter to enable                             *',
-                '* verification that all incoming webhooks originate with Google:                       *',
-                '*                                                                                      *',
-                '* var adapter = new HangoutsAdapter({token: <my secret from Google>});                 *',
-                '*                                                                                      *',
-                '****************************************************************************************',
-                '>> Official docs: https://developers.google.com/hangouts/chat/how-tos/bots-develop?hl=en_US#verifying_bot_authenticity',
-                ''
-            ];
-            console.warn(warning.join('\n'));
-            if (!this.options.enable_incomplete) {
-                throw new Error('Required: include a verificationToken or clientSigningSecret to verify incoming Events API webhooks');
-            }
-        }
+        this.certificateCache = new CertificateCache();
 
         const params = {
             scopes: 'https://www.googleapis.com/auth/chat.bot',
@@ -276,6 +322,32 @@ export class HangoutsAdapter extends BotAdapter {
     }
 
     /**
+     * Verifies that the token from the request infact was issued by Google.
+     * 
+     * If we are unable to verify a token for any reason (malformed, expired, invalid) we
+     * return false.
+     * 
+     * TODO: Replace this with an official implementation from googleapis if it becomes
+     * available.
+     * 
+     * @param req A request object from Restify or Express
+     * @param audience The intended audience of the jwt token. i.e. project number
+     */
+    private async isValidToken(request: any, audience: string): Promise<boolean> {
+        if (!request.has('authorization')) return false;
+
+        try {
+            const token = request.get('authorization').match(/bearer (.*)/i)[1];
+            const { kid } : { kid: string } = decode(token, { header: true })
+            const certificate = await this.certificateCache.getCertificate(kid);
+            const { aud, iss }: { aud: string, iss: string } = verify(token, certificate);
+            return aud == audience && iss == issuer;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /**
      * Accept an incoming webhook request and convert it into a TurnContext which can be processed by the bot's logic.
      * @param req A request object from Restify or Express
      * @param res A response object from Restify or Express
@@ -286,7 +358,7 @@ export class HangoutsAdapter extends BotAdapter {
 
         debug('IN FROM HANGOUTS >', event);
 
-        if (this.options.token && this.options.token !== event.token) {
+        if (await this.isValidToken(req, this.options.project_number)) {
             res.status(401);
             debug('Token verification failed, Ignoring message');
         } else {
@@ -367,12 +439,12 @@ export interface HangoutsAdapterOptions {
         client_email?: string;
         private_key?: string;
     };
+
     /**
-     * Shared secret token used to validate the origin of incoming webhooks.
-     * Get this from the [Google API console for your bot app](https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat) - it is found on the Configuration tab under the heading "Verification Token".
-     * If defined, the origin of all incoming webhooks will be validated and any non-matching requests will be rejected.
+     * ProjectId to verify the audience of the bearer token, also referenced as the project number of the bot.
+     * Get this from the [Google Cloud Platform Dashboard for your bot](https://console.cloud.google.com/home/dashboard) - it is found under the heading "Project number".
      */
-    token: string; // webhook validation token
+    project_number: string;
 
     /**
      * Allow the adapter to startup without a complete configuration.
