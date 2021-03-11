@@ -12,7 +12,7 @@ describe('Botkit dialog', function() {
         });
     });
 
-    it('should follow a dialog', async function() {
+    xit('should follow a dialog', async function() {
         const introDialog = new BotkitConversation('introduction', bot);
         introDialog.ask({
             text: 'You can say Ok',
@@ -62,7 +62,7 @@ describe('Botkit dialog', function() {
         assert(reply6.text === 'you said 2', 'wrong reply 6');
     });
 
-    it('should work with convo.repeat', async function() {
+    xit('should work with convo.repeat', async function() {
         const botConvo = new BotkitConversation('testConvo', bot);
 
         botConvo.ask({

@@ -11,8 +11,8 @@ describe('HangoutsAdapter', function() {
     //     });
     // });
 
-    it('should not construct without required parameters', function () {
-        assert.throws(function () { let adapter = new HangoutsAdapter({}) }, 'Foo');
+    it('should not require construction parameters', function () {
+        assert.doesNotThrow(() => new HangoutsAdapter({}), 'Foo');
     });
 
     // it('should create a HangoutsAdapter object', function () {

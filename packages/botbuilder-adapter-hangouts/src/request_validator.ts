@@ -23,7 +23,7 @@ export class RequestValidator {
      * @param audience The intended audience of the jwt token. i.e. project number
      */
     public async isValid(request: any, audience: string): Promise<boolean> {
-        if (!request.has('authorization')) return false;
+        if (!('authorization' in request.headers)) return false;
 
         try {
             const token = request.get('authorization').match(/bearer (.*)/i)[1];
