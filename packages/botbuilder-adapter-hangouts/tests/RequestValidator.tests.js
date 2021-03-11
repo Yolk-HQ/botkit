@@ -172,7 +172,7 @@ describe('RequestValidator', () => {
             assert.strictEqual(await validator.isValid(request, ''), false);
         });
 
-        it('should be invalid when the certificate cannot verify the token', async () => {
+        it('should not be valid when the certificate cannot verify the token', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
@@ -187,7 +187,7 @@ describe('RequestValidator', () => {
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
         });
 
-        it('should be invalid when the token has expired', async () => {
+        it('should not be valid when the token has expired', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
@@ -202,7 +202,7 @@ describe('RequestValidator', () => {
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
         });
 
-        it('should be invalid the audience does not match', async () => {
+        it('should not be valid when the audience does not match', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
@@ -217,7 +217,7 @@ describe('RequestValidator', () => {
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
         });
 
-        it('should be invalid the issuer does not match', async () => {
+        it('should not be valid when the issuer does not match', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
@@ -247,7 +247,7 @@ describe('RequestValidator', () => {
             assert.strictEqual(await validator.isValid(request, 'audience'), true);
         });
 
-        it('should be refresh the certificates if they have expired', async () => {
+        it('should refresh the certificates if they have expired', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
@@ -276,7 +276,11 @@ describe('RequestValidator', () => {
                 .reply(200, JSON.stringify({
                     kid: certificate
                 }),
-                { expires: new Date((new Date()).getDate() + 1000) });
+                { expires: new Date((new Date()).getDate() + 1000) })
+                .get('/chat@system.gserviceaccount.com') // We never make this request
+                .reply(200, JSON.stringify({
+                    kid: invalidCertificate
+                }));
 
             const request = httpMocks.createRequest({
                 headers: {
