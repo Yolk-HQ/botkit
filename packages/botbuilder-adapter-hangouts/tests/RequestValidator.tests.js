@@ -91,8 +91,7 @@ SeVHTYE7iy0Ckyme+2xcmsl/DiUHfEy+XNcDgOutS5MnWXANqMQEoaLW+NPLI3Lu
 V1sCMYTd7HN9tw7whqLg18wB1zomSMVGT4DkkmAzq4zSKI1FNYp8KA3OE1Emwq+0
 wRsQuawQVLCUEP3To6kYOwTzJq7jhiUK6FnjLjeTrNQSVdoqwoJrlTAHgXVV3q7q
 v3TGd3xXD9yQIjmugNgxNiwAZzhJs/ZJy++fPSJ1XQxbd9qPghgGoe/ff6G7
------END RSA PRIVATE KEY-----`
-
+-----END RSA PRIVATE KEY-----`;
 
 const invalidCertificate = `-----BEGIN CERTIFICATE-----
 MIIGJzCCBA+gAwIBAgIBAzANBgkqhkiG9w0BAQUFADCBsjELMAkGA1UEBhMCRlIx
@@ -130,7 +129,7 @@ A5PX739JsNUi/p5aG+H/6eNx+ukJP7QaM646YCfS5i8S9DJUvim+/BSlKi2ZiOCd
 0MYH4Xb7lmAOTNmTvSYpKo9J2fZ9erw0MYSBTyjh6F7PRbHBiivgUnJfGQ==
 -----END CERTIFICATE-----`;
 
-const algorithm = 'RS256'
+const algorithm = 'RS256';
 
 describe('RequestValidator', () => {
     let validator;
@@ -141,7 +140,7 @@ describe('RequestValidator', () => {
 
     afterEach(() => {
         nock.cleanAll();
-    })
+    });
 
     describe('isValid', () => {
         it('should not be valid when the request does not have an authorization header', async () => {
@@ -152,9 +151,9 @@ describe('RequestValidator', () => {
         it('should not be valid when there are no certificates', async () => {
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, ''), false);
         });
 
@@ -162,14 +161,14 @@ describe('RequestValidator', () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'not_kid': certificate
+                    not_kid: certificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, ''), false);
         });
 
@@ -177,74 +176,74 @@ describe('RequestValidator', () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': invalidCertificate
+                    kid: invalidCertificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
-        })
+        });
 
         it('should be invalid when the token has expired', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', expiresIn: '0', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', expiresIn: '0', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
-        })
+        });
 
         it('should be invalid the audience does not match', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'wrong_audience', issuer: 'chat@system.gserviceaccount.com', expiresIn: '0', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'wrong_audience', issuer: 'chat@system.gserviceaccount.com', expiresIn: '0', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
-        })
+        });
 
         it('should be invalid the issuer does not match', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'wrong_issuer', expiresIn: '0', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'wrong_issuer', expiresIn: '0', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, 'audience'), false);
-        })
+        });
 
         it('should be valid when the request is valid', async () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
             assert.strictEqual(await validator.isValid(request, 'audience'), true);
         });
 
@@ -252,18 +251,18 @@ describe('RequestValidator', () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }))
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': invalidCertificate
+                    kid: invalidCertificate
                 }));
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
 
             assert.strictEqual(await validator.isValid(request, 'audience'), true);
 
@@ -275,15 +274,15 @@ describe('RequestValidator', () => {
             nock('https://www.googleapis.com/service_accounts/v1/metadata/x509')
                 .get('/chat@system.gserviceaccount.com')
                 .reply(200, JSON.stringify({
-                    'kid': certificate
+                    kid: certificate
                 }),
-                { 'expires': new Date((new Date()).getDate() + 1000)});
+                { expires: new Date((new Date()).getDate() + 1000) });
 
             const request = httpMocks.createRequest({
                 headers: {
-                    'authorization': `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
+                    authorization: `Bearer ${ sign({}, key, { algorithm, audience: 'audience', issuer: 'chat@system.gserviceaccount.com', header: { kid: 'kid' } }) }`
                 }
-            })
+            });
 
             assert.strictEqual(await validator.isValid(request, 'audience'), true);
 
