@@ -19,7 +19,7 @@ export class RequestValidator {
      * If we are unable to verify a token for any reason (malformed, expired, invalid) we
      * return false.
      * TODO: Replace this with an official implementation from googleapis if it becomes available.
-     * @param req A request object from Restify or Express
+     * @param request A request object from Restify or Express
      * @param audience The intended audience of the jwt token. i.e. project number
      */
     public async isValid(request: any, audience: string): Promise<boolean> {
