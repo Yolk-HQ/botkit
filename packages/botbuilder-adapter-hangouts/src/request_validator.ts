@@ -1,5 +1,5 @@
 import fetch from 'cross-fetch';
-import { decode, verify } from 'jsonwebtoken'
+import { decode, verify } from 'jsonwebtoken';
 
 const issuer = 'chat@system.gserviceaccount.com';
 
@@ -9,46 +9,42 @@ export class RequestValidator {
 
     private certificates: Map<string, string>;
 
-    constructor() {
-        this.url = `https://www.googleapis.com/service_accounts/v1/metadata/x509/${issuer}`;
+    public constructor() {
+        this.url = `https://www.googleapis.com/service_accounts/v1/metadata/x509/${ issuer }`;
         this.expiresAt = new Date();
     }
 
     /**
      * Verifies that the token from the request infact was issued by Google.
-     * 
      * If we are unable to verify a token for any reason (malformed, expired, invalid) we
      * return false.
-     * 
-     * TODO: Replace this with an official implementation from googleapis if it becomes
-     * available.
-     * 
+     * TODO: Replace this with an official implementation from googleapis if it becomes available.
      * @param req A request object from Restify or Express
      * @param audience The intended audience of the jwt token. i.e. project number
      */
-     public async isValid(request: any, audience: string): Promise<boolean> {
+    public async isValid(request: any, audience: string): Promise<boolean> {
         if (!request.has('authorization')) return false;
 
         try {
             const token = request.get('authorization').match(/bearer (.*)/i)[1];
-            const { kid } : { kid: string } = decode(token, { header: true })
-            const certificate = await this.getCertificate(kid);
-            const { aud, iss }: { aud: string, iss: string } = verify(token, certificate);
-            return aud == audience && iss == issuer;
+            const decodedToken: any = decode(token, { complete: true });
+            const certificate = await this.getCertificate(decodedToken?.header?.kid);
+            const verifiedToken: any = verify(token, certificate);
+            return verifiedToken?.aud === audience && verifiedToken?.iss === issuer;
         } catch (e) {
             return false;
         }
     }
 
     /**
-     * Gets the certificate associated with the provided kid from the google certificates 
+     * Gets the certificate associated with the provided kid from the google certificates
      * endpoint.
-     * 
+     *
      * @param kid The kid associated with the certificate we with to retrieve.
      */
     private async getCertificate(kid: string): Promise<string> {
         if (this.hasExpired()) {
-            await this.refresh()
+            await this.refresh();
         }
 
         return this.certificates.get(kid);
