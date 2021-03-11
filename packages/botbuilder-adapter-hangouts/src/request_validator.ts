@@ -7,7 +7,7 @@ export class RequestValidator {
     private url: string;
     private expiresAt: Date;
 
-    private certificates: Map<string, string>;
+    private certificates: {[key: string]: string};
 
     public constructor() {
         this.url = `https://www.googleapis.com/service_accounts/v1/metadata/x509/${ issuer }`;
@@ -47,26 +47,18 @@ export class RequestValidator {
             await this.refresh();
         }
 
-        return this.certificates.get(kid);
+        return this.certificates[kid];
     }
 
     /**
      * Refresh the local certificates cache with fresh certificates from google.
      */
     private async refresh(): Promise<void> {
-        this.certificates = new Map<string, string>();
-
         const response = await fetch(this.url);
-        const certificates = JSON.parse(await response.text());
-
-        for (const kid in certificates) {
-            this.certificates.set(kid, certificates[kid]);
-        }
+        this.certificates = JSON.parse(await response.text());
 
         if (response.headers.has('expires')) {
             this.expiresAt = new Date(response.headers.get('expires'));
-        } else {
-            this.expiresAt = new Date(); // Immediately expire
         }
     }
 
