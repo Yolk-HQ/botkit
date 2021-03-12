@@ -1,6 +1,6 @@
 {
   "name": "testbot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "a test harness for testing in-progress changes to botkit",
   "main": "bot.js",
   "scripts": {
@@ -10,14 +10,14 @@
   "license": "MIT",
   "dependencies": {
     "botbuilder": "^4.10.1",
-    "botbuilder-ai": "^4.10.1",
-    "botbuilder-dialogs": "^4.10.1",
     "botbuilder-adapter-facebook": "^1.0.0",
-    "botbuilder-adapter-hangouts": "^1.0.0",
+    "botbuilder-adapter-hangouts": "^1.0.9",
     "botbuilder-adapter-slack": "^1.0.0",
     "botbuilder-adapter-twilio-sms": "^1.0.0",
     "botbuilder-adapter-web": "^1.0.0",
     "botbuilder-adapter-webex": "^1.0.0",
+    "botbuilder-ai": "^4.10.1",
+    "botbuilder-dialogs": "^4.10.1",
     "botbuilder-dialogs-botkit-cms": "0.0.1",
     "botbuilder-storage-mongodb": "^0.9.5",
     "botkit": "^4.10.0",
