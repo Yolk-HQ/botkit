@@ -275,7 +275,7 @@ export class HangoutsAdapter extends BotAdapter {
 
         debug('IN FROM HANGOUTS >', event);
 
-        if (await this.requestValidator.isValid(req, this.options.project_number)) {
+        if (!(await this.requestValidator.isValid(req, this.options.project_number))) {
             res.status(401);
             debug('Token verification failed, Ignoring message');
         } else {
